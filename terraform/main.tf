@@ -76,7 +76,7 @@ locals {
 }
 
 resource "aws_security_group" "ec2" {
-  name        = "ec2-basic-sg"
+  name        = "ec2-server-sg"
   description = "Basic security group for EC2 instance"
   vpc_id      = data.aws_vpc.default.id
 
@@ -88,7 +88,7 @@ resource "aws_security_group" "ec2" {
   }
 
   tags = {
-    Name = "ec2-basic-sg"
+    Name = "ec2-server-sg"
   }
 }
 
