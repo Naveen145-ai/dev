@@ -2,32 +2,40 @@ pipeline {
     agent any
 
     stages {
-
         stage('Checkout Code') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/Naveen145-ai/dev.git'
+                git branch: 'main', url: 'https://github.com/Naveen145-ai/dev.git'
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t naveen-html-app .'
-            }
-        }
-
-        stage('Stop Old Container') {
+        stage('Terraform Init & Apply') {
             steps {
                 sh '''
-                docker stop html-container || true
-                docker rm html-container || true
+                cd terraform
+                terraform init
+                terraform apply -auto-approve
+                terraform output -raw instance_ip > ../ec2_ip.txt
                 '''
             }
         }
 
-        stage('Run New Container') {
+        stage('Build & Push Docker Image') {
             steps {
-                sh 'docker run -d -p 3000:80 --name html-container naveen-html-app'
+                sh '''
+                docker build -t naveen-html-app .
+                docker tag naveen-html-app:latest $DOCKER_REGISTRY/naveen-html-app:latest
+                docker push $DOCKER_REGISTRY/naveen-html-app:latest
+                '''
+            }
+        }
+
+        stage('Deploy to EC2') {
+            steps {
+                sh '''
+                EC2_IP=$(cat ec2_ip.txt)
+                ssh -i $SSH_KEY_PATH ec2-user@$EC2_IP "docker pull $DOCKER_REGISTRY/naveen-html-app:latest && docker run -d -p 3000:80 naveen-html-app"
+                echo "✓ Deployed at http://$EC2_IP:3000"
+                '''
             }
         }
     }
